@@ -1,29 +1,14 @@
 import React, { useState } from 'react';
 import { Box, TextField, Button, FormControlLabel, Switch, Grid, Select, MenuItem, InputLabel, FormControl } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
-import * as yup from 'yup';
-
-// Validation Schema using Yup
-const schema = yup.object({
-  username: yup.string().required('Username is required'),
-  email: yup.string().email('Invalid email format').required('Email is required'),
-  theme: yup.string().required('Please select a theme'),
-  emailNotifications: yup.boolean(),
-  smsNotifications: yup.boolean(),
-}).required();
-
 
 const SettingsPage = () => {
-  const { control, handleSubmit, formState: { errors },register } = useForm({
-    resolver: yupResolver(schema),
-  });
+  const { control, handleSubmit, formState: { errors }, register } = useForm();
 
   const [isLoading, setIsLoading] = useState(false);
 
   const onSubmit = (data) => {
     setIsLoading(true);
-    // Simulate API call to save settings
     setTimeout(() => {
       alert('Settings saved successfully!');
       setIsLoading(false);
@@ -32,34 +17,39 @@ const SettingsPage = () => {
 
   return (
     <Box sx={{ padding: 2 }}>
-      <h2>Account Settings</h2>
+      <h2>Default Settings</h2>
       <form onSubmit={handleSubmit(onSubmit)}>
-        {/* Username */}
+        
         <TextField
           label="Username"
           fullWidth
           margin="normal"
-          {...register('username')}
+          {...register('username', { required: 'Username is required' })}
           error={!!errors.username}
           helperText={errors.username?.message}
         />
-        
-        {/* Email */}
+    
         <TextField
           label="Email"
           fullWidth
           margin="normal"
-          {...register('email')}
+          {...register('email', { 
+            required: 'Email is required',
+            pattern: {
+              value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i,
+              message: 'Invalid email format'
+            }
+          })}
           error={!!errors.email}
           helperText={errors.email?.message}
         />
         
-        {/* Theme Selection */}
         <FormControl fullWidth margin="normal">
           <InputLabel id="theme-label">Theme</InputLabel>
           <Controller
             name="theme"
             control={control}
+            rules={{ required: 'Please select a theme' }}
             render={({ field }) => (
               <Select
                 {...field}
@@ -75,7 +65,6 @@ const SettingsPage = () => {
           {errors.theme && <p style={{ color: 'red' }}>{errors.theme.message}</p>}
         </FormControl>
 
-        {/* Notification Preferences */}
         <Grid container spacing={3} sx={{ marginTop: 2 }}>
           <Grid item xs={6}>
             <FormControlLabel
@@ -103,7 +92,6 @@ const SettingsPage = () => {
           </Grid>
         </Grid>
 
-        {/* Submit Button */}
         <Button type="submit" variant="contained" color="primary" sx={{ marginTop: 3 }}>
           {isLoading ? 'Saving...' : 'Save Settings'}
         </Button>

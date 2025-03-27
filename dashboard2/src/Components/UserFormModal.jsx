@@ -7,13 +7,13 @@ const UserFormModal = ({ open, onClose, onSubmit, user = null }) => {
 
   useEffect(() => {
     if (user) {
-      reset(user);  // Reset the form fields with the user data if editing
+      reset(user);  
     }
   }, [user, reset]);
 
   const onFormSubmit = (data) => {
     onSubmit(data);
-    reset();  // Reset form after submission
+    reset();  
   };
 
   return (

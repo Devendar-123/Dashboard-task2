@@ -1,22 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { Paper, Table, TableHead, TableRow, TableCell, TableBody, Button, Snackbar } from '@mui/material';
-
+import {
+  Paper,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  Button,
+  Snackbar,
+  TextField,
+  TablePagination,
+} from '@mui/material';
 import axios from 'axios';
 import UserFormModal from './UserFormModal';
 
 const UsersPage = () => {
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState([]); // Fetched users
+  const [newUsers, setNewUsers] = useState([]); // Newly added users
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [userToEdit, setUserToEdit] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
 
-  // Fetch users from an API
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('https://jsonplaceholder.typicode.com/users ');
+        const response = await axios.get('https://jsonplaceholder.typicode.com/users');
         setUsers(response.data);
       } catch (error) {
         console.error('Error fetching users:', error);
@@ -28,58 +41,103 @@ const UsersPage = () => {
     fetchUsers();
   }, []);
 
+  // Combined users list for filtering and displaying
+  const combinedUsers = [...users, ...newUsers];
+  const filteredUsers = combinedUsers.filter(
+    (user) =>
+      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Handle Pagination
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0); // Reset to first page
+  };
+
+  // Open Modal for Adding a New User
   const handleAddUser = () => {
-    setUserToEdit(null); // Clear the user to edit for adding a new one
+    setUserToEdit(null); // Reset the form
     setIsModalOpen(true);
   };
 
+  // Open Modal for Editing an Existing User
   const handleEditUser = (user) => {
-    setUserToEdit(user);
+    setUserToEdit(user); // Pre-fill the form
     setIsModalOpen(true);
   };
 
-  const handleDeleteUser = async (userId) => {
-    try {
-      await axios.delete(`https://jsonplaceholder.typicode.com/users/${userId}`);
-      setUsers(users.filter(user => user.id !== userId)); // Remove the deleted user from the state
-      setSnackbarMessage('User deleted successfully!');
-      setSnackbarOpen(true);
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      setSnackbarMessage('Error deleting user');
-      setSnackbarOpen(true);
+  // Delete a User
+  const handleDeleteUser = (userId) => {
+    // Check if user belongs to fetched or newly added
+    if (userId >= 10000) {
+      // Newly added user
+      setNewUsers(newUsers.filter((user) => user.id !== userId));
+    } else {
+      // Fetched user
+      setUsers(users.filter((user) => user.id !== userId));
     }
+    setSnackbarMessage('User deleted successfully!');
+    setSnackbarOpen(true);
   };
 
-  const handleSubmit = async (userData) => {
-    try {
-      if (userToEdit) {
-        // Update user
-        await axios.put(`https://jsonplaceholder.typicode.com/users/${userToEdit.id}`, userData);
-        setUsers(users.map((user) => (user.id === userToEdit.id ? { ...user, ...userData } : user)));
-        setSnackbarMessage('User updated successfully!');
+  // Handle Add/Edit User Submission
+  const handleSubmit = (userData) => {
+    if (userToEdit) {
+      // Editing a user
+      if (userToEdit.id >= 10000) {
+        // Update newly added user
+        setNewUsers(
+          newUsers.map((user) =>
+            user.id === userToEdit.id ? { ...user, ...userData } : user
+          )
+        );
       } else {
-        // Create new user
-        const response = await axios.post('https://jsonplaceholder.typicode.com/users', userData);
-        setUsers([...users, response.data]);
-        setSnackbarMessage('User created successfully!');
+        // Update fetched user
+        setUsers(
+          users.map((user) =>
+            user.id === userToEdit.id ? { ...user, ...userData } : user
+          )
+        );
       }
-      setIsModalOpen(false); // Close the modal after submission
-      setSnackbarOpen(true);
-    } catch (error) {
-      console.error('Error saving user:', error);
-      setSnackbarMessage('Error saving user');
-      setSnackbarOpen(true);
+      setSnackbarMessage('User updated successfully!');
+    } else {
+      // Adding a new user
+      const newUser = { id: Date.now(), ...userData }; // Generate unique ID
+      setNewUsers([...newUsers, newUser]);
+      setSnackbarMessage('User created successfully!');
     }
+    setIsModalOpen(false); // Close modal
+    setSnackbarOpen(true); // Show notification
   };
+
+  // Paginated Users
+  const paginatedUsers = filteredUsers.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   if (loading) return <div>Loading...</div>;
 
   return (
     <div>
+      {/* Add New User Button */}
       <Button variant="contained" onClick={handleAddUser} sx={{ mb: 2 }}>
         Add New User
       </Button>
+
+      {/* Search Users Input */}
+      <TextField
+        label="Search Users"
+        variant="outlined"
+        fullWidth
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        sx={{ mb: 3 }}
+      />
+
+      {/* User List Table */}
       <Paper sx={{ mt: 3, p: 3 }}>
         <h2>User List</h2>
         <Table>
@@ -91,22 +149,49 @@ const UsersPage = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {users.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell>{user.name}</TableCell>
-                <TableCell>{user.email}</TableCell>
-                <TableCell>
-                  <Button variant="outlined" onClick={() => handleEditUser(user)}>Edit</Button>
-                  <Button variant="contained" color="error" sx={{ ml: 2 }} onClick={() => handleDeleteUser(user.id)}>
-                    Delete
-                  </Button>
+            {paginatedUsers.length > 0 ? (
+              paginatedUsers.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell>{user.name}</TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell>
+                    <Button variant="outlined" onClick={() => handleEditUser(user)}>
+                      Edit
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="error"
+                      sx={{ ml: 2 }}
+                      onClick={() => handleDeleteUser(user.id)}
+                    >
+                      Delete
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={3} align="center">
+                  No users found
                 </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
+
+        {/* Pagination */}
+        <TablePagination
+          rowsPerPageOptions={[5, 10, 25]}
+          component="div"
+          count={filteredUsers.length}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+        />
       </Paper>
 
+      {/* User Form Modal for Add/Edit */}
       <UserFormModal
         open={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -114,6 +199,7 @@ const UsersPage = () => {
         user={userToEdit}
       />
 
+      {/* Snackbar Notification */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={3000}
