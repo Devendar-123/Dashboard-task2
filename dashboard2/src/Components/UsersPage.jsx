@@ -10,13 +10,14 @@ import {
   Snackbar,
   TextField,
   TablePagination,
+  TableSortLabel,
 } from '@mui/material';
 import axios from 'axios';
 import UserFormModal from './UserFormModal';
 
 const UsersPage = () => {
-  const [users, setUsers] = useState([]); // Fetched users
-  const [newUsers, setNewUsers] = useState([]); // Newly added users
+  const [users, setUsers] = useState([]); 
+  const [newUsers, setNewUsers] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [userToEdit, setUserToEdit] = useState(null);
@@ -25,6 +26,8 @@ const UsersPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [order, setOrder] = useState('asc'); 
+  const [orderBy, setOrderBy] = useState('name'); 
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -41,7 +44,7 @@ const UsersPage = () => {
     fetchUsers();
   }, []);
 
-  // Combined users list for filtering and displaying
+  
   const combinedUsers = [...users, ...newUsers];
   const filteredUsers = combinedUsers.filter(
     (user) =>
@@ -49,55 +52,59 @@ const UsersPage = () => {
       user.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Handle Pagination
+  const handleRequestSort = (property) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+  };
+
+  const sortedUsers = filteredUsers.sort((a, b) => {
+    if (a[orderBy] < b[orderBy]) {
+      return order === 'asc' ? -1 : 1;
+    }
+    if (a[orderBy] > b[orderBy]) {
+      return order === 'asc' ? 1 : -1;
+    }
+    return 0;
+  });
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
   };
 
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0); // Reset to first page
+    setPage(0); 
   };
 
-  // Open Modal for Adding a New User
   const handleAddUser = () => {
-    setUserToEdit(null); // Reset the form
+    setUserToEdit(null); 
     setIsModalOpen(true);
   };
 
-  // Open Modal for Editing an Existing User
   const handleEditUser = (user) => {
-    setUserToEdit(user); // Pre-fill the form
+    setUserToEdit(user); 
     setIsModalOpen(true);
   };
 
-  // Delete a User
   const handleDeleteUser = (userId) => {
-    // Check if user belongs to fetched or newly added
     if (userId >= 10000) {
-      // Newly added user
       setNewUsers(newUsers.filter((user) => user.id !== userId));
     } else {
-      // Fetched user
       setUsers(users.filter((user) => user.id !== userId));
     }
     setSnackbarMessage('User deleted successfully!');
     setSnackbarOpen(true);
   };
 
-  // Handle Add/Edit User Submission
   const handleSubmit = (userData) => {
     if (userToEdit) {
-      // Editing a user
       if (userToEdit.id >= 10000) {
-        // Update newly added user
         setNewUsers(
           newUsers.map((user) =>
             user.id === userToEdit.id ? { ...user, ...userData } : user
           )
         );
       } else {
-        // Update fetched user
         setUsers(
           users.map((user) =>
             user.id === userToEdit.id ? { ...user, ...userData } : user
@@ -106,28 +113,24 @@ const UsersPage = () => {
       }
       setSnackbarMessage('User updated successfully!');
     } else {
-      // Adding a new user
-      const newUser = { id: Date.now(), ...userData }; // Generate unique ID
+      const newUser = { id: Date.now(), ...userData };
       setNewUsers([...newUsers, newUser]);
       setSnackbarMessage('User created successfully!');
     }
-    setIsModalOpen(false); // Close modal
-    setSnackbarOpen(true); // Show notification
+    setIsModalOpen(false);
+    setSnackbarOpen(true);
   };
 
-  // Paginated Users
-  const paginatedUsers = filteredUsers.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  const paginatedUsers = sortedUsers.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   if (loading) return <div>Loading...</div>;
 
   return (
     <div>
-      {/* Add New User Button */}
       <Button variant="contained" onClick={handleAddUser} sx={{ mb: 2 }}>
         Add New User
       </Button>
 
-      {/* Search Users Input */}
       <TextField
         label="Search Users"
         variant="outlined"
@@ -137,14 +140,29 @@ const UsersPage = () => {
         sx={{ mb: 3 }}
       />
 
-      {/* User List Table */}
       <Paper sx={{ mt: 3, p: 3 }}>
         <h2>User List</h2>
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Email</TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={orderBy === 'name'}
+                  direction={orderBy === 'name' ? order : 'asc'}
+                  onClick={() => handleRequestSort('name')}
+                >
+                  Name
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={orderBy === 'email'}
+                  direction={orderBy === 'email' ? order : 'asc'}
+                  onClick={() => handleRequestSort('email')}
+                >
+                  Email
+                </TableSortLabel>
+              </TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -179,7 +197,6 @@ const UsersPage = () => {
           </TableBody>
         </Table>
 
-        {/* Pagination */}
         <TablePagination
           rowsPerPageOptions={[5, 10, 25]}
           component="div"
@@ -191,7 +208,6 @@ const UsersPage = () => {
         />
       </Paper>
 
-      {/* User Form Modal for Add/Edit */}
       <UserFormModal
         open={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -199,7 +215,6 @@ const UsersPage = () => {
         user={userToEdit}
       />
 
-      {/* Snackbar Notification */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={3000}
